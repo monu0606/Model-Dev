@@ -1,0 +1,21 @@
+# Pinned to versions verified working on macOS (Apple Silicon) as of 2026-09.
+# torchaudio 2.11+ delegates audio decoding to torchcodec - both are required.
+torch==2.14.0
+torchaudio==2.11.0
+torchcodec==0.16.0
+soundfile==0.14.0
+transformers==5.16.1
+onnx==1.20.1
+onnxruntime==1.20.1
+huggingface_hub==1.29.0
+
+# Gemma 4 (audio-capable E2B/E4B) - see gemma4_transcribe.py
+accelerate==1.14.0
+librosa==0.11.0
+torchvision==0.29.0
+
+# Local server
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+python-multipart==0.0.32
+requests==2.34.2

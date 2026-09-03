@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IndicConformer — Speech to Text</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --surface: #ffffff;
+    --border: #e3e0d8;
+    --text: #1f1c17;
+    --text-muted: #6b6558;
+    --accent: #b5502e;
+    --accent-hover: #9c4326;
+    --accent-soft: #f3e3da;
+    --error-bg: #fbeae7;
+    --error-text: #9c3b1f;
+    --success: #3f7a4f;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(30, 25, 15, 0.06), 0 8px 24px rgba(30, 25, 15, 0.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #17140f;
+      --surface: #211d17;
+      --border: #353026;
+      --text: #f1ede4;
+      --text-muted: #a89e8c;
+      --accent: #e08a5f;
+      --accent-hover: #eb9c74;
+      --accent-soft: #3a2a20;
+      --error-bg: #3a2019;
+      --error-text: #ff9d7a;
+      --success: #7fc490;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+    min-height: 100vh;
+  }
+  .wrap {
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 48px 20px 80px;
+  }
+  header { margin-bottom: 28px; }
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 650;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+  }
+  .status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 12px;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--success);
+    flex-shrink: 0;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+  }
+  .dropzone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+  .dropzone:hover, .dropzone.drag {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .dropzone svg { opacity: 0.55; margin-bottom: 8px; }
+  .dropzone .primary { font-size: 0.95rem; font-weight: 550; margin-bottom: 2px; }
+  .dropzone .secondary { font-size: 0.82rem; color: var(--text-muted); }
+  #fileInput { display: none; }
+
+  .file-chip {
+    display: none;
+    align-items: center;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 10px 12px;
+    background: var(--accent-soft);
+    border-radius: 8px;
+    font-size: 0.85rem;
+  }
+  .file-chip.show { display: flex; }
+  .file-chip .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 550; }
+  .file-chip button {
+    background: none; border: none; color: var(--text-muted); cursor: pointer;
+    font-size: 0.85rem; padding: 2px 6px; border-radius: 6px;
+  }
+  .file-chip button:hover { color: var(--text); background: rgba(0,0,0,0.06); }
+
+  audio { width: 100%; margin-top: 14px; display: none; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 20px;
+  }
+  label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    margin-bottom: 6px;
+  }
+  select, textarea, input[type="text"], input[type="number"] {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 0.92rem;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; line-height: 1.4; }
+
+  .row.four { grid-template-columns: repeat(4, 1fr); }
+
+  .advanced {
+    margin-top: 18px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 12px 14px;
+  }
+  .advanced summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .advanced label { margin-top: 14px; }
+  .advanced .row.four { margin-top: 8px; }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 14px;
+  }
+  .toggle-label {
+    margin: 0 !important;
+    text-transform: none !important;
+    font-weight: 500 !important;
+    font-size: 0.88rem !important;
+    color: var(--text) !important;
+  }
+  .toggle-row input[type="checkbox"] { width: auto; flex-shrink: 0; }
+
+  button.submit {
+    width: 100%;
+    margin-top: 22px;
+    padding: 13px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  button.submit:hover:not(:disabled) { background: var(--accent-hover); }
+  button.submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+  .spinner {
+    display: none;
+    width: 15px; height: 15px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: -2px;
+  }
+  button.submit.loading .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error {
+    display: none;
+    margin-top: 16px;
+    padding: 12px 14px;
+    background: var(--error-bg);
+    color: var(--error-text);
+    border-radius: 8px;
+    font-size: 0.88rem;
+  }
+  .error.show { display: block; }
+
+  .results { display: none; margin-top: 24px; }
+  .results.show { display: block; }
+  .result-block { margin-bottom: 14px; }
+  .result-block:last-child { margin-bottom: 0; }
+  .result-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .result-head .label {
+    font-size: 0.78rem; font-weight: 700; letter-spacing: 0.03em;
+    color: var(--accent); text-transform: uppercase;
+  }
+  .copy-btn {
+    background: none; border: 1px solid var(--border); color: var(--text-muted);
+    font-size: 0.75rem; padding: 3px 9px; border-radius: 6px; cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--text); border-color: var(--text-muted); }
+  .result-text {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 1rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  footer {
+    text-align: center;
+    margin-top: 28px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  footer a { color: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>IndicConformer — Speech to Text</h1>
+    <p>Upload an audio file and transcribe it locally with ai4bharat/indic-conformer-600m-multilingual, or Google's Gemma 4 (E2B/E4B). Nothing leaves this machine.</p>
+    <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Checking model status…</span></div>
+  </header>
+
+  <div class="card">
+    <form id="form">
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="fileInput" accept="audio/*,.wav,.wave,.mp3,.flac,.m4a,.aac,.ogg,.opus,.webm">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v12m0-12l-4 4m4-4l4 4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+        <div class="primary">Click to choose an audio file, or drag one here</div>
+        <div class="secondary">WAV, MP3, FLAC, M4A — any format your browser can read</div>
+      </div>
+      <div class="file-chip" id="fileChip">
+        <span class="name" id="fileName"></span>
+        <button type="button" id="clearFile">Remove</button>
+      </div>
+      <audio id="preview" controls></audio>
+
+      <div class="row">
+        <div>
+          <label for="engine">Engine</label>
+          <select id="engine">
+            <option value="indic" selected>IndicConformer</option>
+            <option value="gemma4-e2b">Gemma 4 (E2B)</option>
+            <option value="gemma4-e4b">Gemma 4 (E4B)</option>
+          </select>
+        </div>
+        <div id="languageField">
+          <label for="language">Language</label>
+          <select id="language"></select>
+        </div>
+      </div>
+      <div class="row" id="modeField">
+        <div>
+          <label for="mode">Decoding</label>
+          <select id="mode">
+            <option value="both" selected>CTC + RNNT</option>
+            <option value="ctc">CTC only</option>
+            <option value="rnnt">RNNT only</option>
+          </select>
+        </div>
+      </div>
+
+      <details class="advanced" id="gemma4Advanced" style="display:none">
+        <summary>Advanced (Gemma 4)</summary>
+
+        <div class="toggle-row">
+          <label for="reasoning" class="toggle-label">Reasoning (chain-of-thought before the answer)</label>
+          <input type="checkbox" id="reasoning">
+        </div>
+
+        <label for="systemPrompt">System prompt</label>
+        <textarea id="systemPrompt" rows="3"></textarea>
+
+        <label for="userPrompt">User prompt</label>
+        <input type="text" id="userPrompt">
+
+        <div class="row four">
+          <div>
+            <label for="temperature">Temperature</label>
+            <input type="number" id="temperature" step="0.1" min="0">
+          </div>
+          <div>
+            <label for="topK">Top-K</label>
+            <input type="number" id="topK" step="1" min="0">
+          </div>
+          <div>
+            <label for="topP">Top-P</label>
+            <input type="number" id="topP" step="0.01" min="0" max="1">
+          </div>
+          <div>
+            <label for="maxTokens">Max tokens</label>
+            <input type="number" id="maxTokens" step="1" min="1">
+          </div>
+        </div>
+      </details>
+
+      <button type="submit" class="submit" id="submitBtn">
+        <span class="spinner"></span><span id="submitLabel">Transcribe</span>
+      </button>
+    </form>
+
+    <div class="error" id="error"></div>
+
+    <div class="results" id="results">
+      <div class="result-block" id="ctcBlock" style="display:none">
+        <div class="result-head">
+          <span class="label">CTC</span>
+          <button class="copy-btn" data-target="ctcText">Copy</button>
+        </div>
+        <div class="result-text" id="ctcText"></div>
+      </div>
+      <div class="result-block" id="rnntBlock" style="display:none">
+        <div class="result-head">
+          <span class="label">RNNT</span>
+          <button class="copy-btn" data-target="rnntText">Copy</button>
+        </div>
+        <div class="result-text" id="rnntText"></div>
+      </div>
+      <div class="result-block" id="gemma4Block" style="display:none">
+        <div class="result-head">
+          <span class="label" id="gemma4Label">Gemma 4</span>
+          <button class="copy-btn" data-target="gemma4Text">Copy</button>
+        </div>
+        <div class="result-text" id="gemma4Text"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Served locally by server.py · <a href="/docs">API docs</a></footer>
+</div>
+
+<script>
+const LANGUAGES = [
+  ["hi","Hindi"], ["bn","Bengali"], ["ta","Tamil"], ["te","Telugu"], ["kn","Kannada"],
+  ["ml","Malayalam"], ["mr","Marathi"], ["gu","Gujarati"], ["pa","Punjabi"], ["ur","Urdu"],
+  ["or","Odia"], ["as","Assamese"], ["mai","Maithili"], ["kok","Konkani"], ["sa","Sanskrit"],
+  ["brx","Bodo"], ["doi","Dogri"], ["sat","Santali"], ["ks","Kashmiri"], ["sd","Sindhi"],
+  ["mni","Manipuri"], ["ne","Nepali"],
+];
+
+const $ = (id) => document.getElementById(id);
+const form = $("form"), dropzone = $("dropzone"), fileInput = $("fileInput");
+const fileChip = $("fileChip"), fileName = $("fileName"), clearFile = $("clearFile");
+const preview = $("preview"), languageSelect = $("language");
+const engineSelect = $("engine"), languageField = $("languageField"), modeField = $("modeField");
+const submitBtn = $("submitBtn"), submitLabel = $("submitLabel");
+const errorEl = $("error"), resultsEl = $("results");
+const ctcBlock = $("ctcBlock"), ctcText = $("ctcText");
+const rnntBlock = $("rnntBlock"), rnntText = $("rnntText");
+const gemma4Block = $("gemma4Block"), gemma4Text = $("gemma4Text"), gemma4Label = $("gemma4Label");
+const statusDot = $("statusDot"), statusText = $("statusText");
+
+languageSelect.innerHTML = LANGUAGES.map(([code, name]) => `<option value="${code}">${name} (${code})</option>`).join("");
+
+function isGemma4() { return engineSelect.value.startsWith("gemma4"); }
+
+const gemma4Advanced = $("gemma4Advanced");
+const reasoningToggle = $("reasoning"), systemPromptEl = $("systemPrompt"), userPromptEl = $("userPrompt");
+const temperatureEl = $("temperature"), topKEl = $("topK"), topPEl = $("topP"), maxTokensEl = $("maxTokens");
+let gemma4Defaults = null;
+
+async function loadGemma4Defaults() {
+  try {
+    gemma4Defaults = await (await fetch("/gemma4/defaults")).json();
+    userPromptEl.value = gemma4Defaults.prompt;
+    temperatureEl.value = gemma4Defaults.temperature;
+    topKEl.value = gemma4Defaults.top_k;
+    topPEl.value = gemma4Defaults.top_p;
+    maxTokensEl.value = gemma4Defaults.max_tokens;
+    applyReasoningDefaultPrompt();
+  } catch {
+    // Advanced panel just won't have defaults pre-filled; requests still
+    // work since the server applies its own defaults for anything blank.
+  }
+}
+
+function applyReasoningDefaultPrompt() {
+  if (!gemma4Defaults) return;
+  systemPromptEl.value = reasoningToggle.checked
+    ? gemma4Defaults.system_prompt_reasoning
+    : gemma4Defaults.system_prompt_no_reasoning;
+}
+reasoningToggle.addEventListener("change", applyReasoningDefaultPrompt);
+
+function updateEngineFields() {
+  const gemma4 = isGemma4();
+  languageField.style.display = gemma4 ? "none" : "";
+  modeField.style.display = gemma4 ? "none" : "";
+  gemma4Advanced.style.display = gemma4 ? "" : "none";
+  if (gemma4 && !gemma4Defaults) loadGemma4Defaults();
+}
+engineSelect.addEventListener("change", updateEngineFields);
+updateEngineFields();
+
+function setFile(file) {
+  if (!file) return;
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  fileInput.files = dt.files;
+  fileName.textContent = file.name;
+  fileChip.classList.add("show");
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = "block";
+  hideError();
+}
+
+dropzone.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => setFile(fileInput.files[0]));
+
+["dragover", "dragenter"].forEach(evt =>
+  dropzone.addEventListener(evt, (e) => { e.preventDefault(); dropzone.classList.add("drag"); })
+);
+["dragleave", "dragend"].forEach(evt =>
+  dropzone.addEventListener(evt, () => dropzone.classList.remove("drag"))
+);
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dropzone.classList.remove("drag");
+  const file = e.dataTransfer.files[0];
+  if (file) setFile(file);
+});
+
+clearFile.addEventListener("click", (e) => {
+  e.stopPropagation();
+  fileInput.value = "";
+  fileChip.classList.remove("show");
+  preview.style.display = "none";
+  preview.removeAttribute("src");
+});
+
+function showError(msg) {
+  errorEl.textContent = msg;
+  errorEl.classList.add("show");
+}
+function hideError() {
+  errorEl.classList.remove("show");
+}
+
+form.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  hideError();
+  resultsEl.classList.remove("show");
+
+  const file = fileInput.files[0];
+  if (!file) {
+    showError("Please choose an audio file first.");
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const gemma4 = isGemma4();
+  let url, size;
+  if (gemma4) {
+    size = engineSelect.value.split("-")[1]; // "gemma4-e2b" -> "e2b"
+    url = `/gemma4/transcribe?${new URLSearchParams({
+      size,
+      reasoning: reasoningToggle.checked,
+      system_prompt: systemPromptEl.value,
+      prompt: userPromptEl.value,
+      temperature: temperatureEl.value,
+      top_k: topKEl.value,
+      top_p: topPEl.value,
+      max_tokens: maxTokensEl.value,
+    })}`;
+  } else {
+    url = `/transcribe?${new URLSearchParams({ language: languageSelect.value, mode: $("mode").value })}`;
+  }
+
+  ctcBlock.style.display = "none";
+  rnntBlock.style.display = "none";
+  gemma4Block.style.display = "none";
+
+  submitBtn.disabled = true;
+  submitBtn.classList.add("loading");
+  submitLabel.textContent = gemma4 ? "Transcribing… (CPU-only, can take a while)" : "Transcribing…";
+
+  try {
+    const res = await fetch(url, { method: "POST", body: formData });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || `Request failed (${res.status})`);
+
+    if (gemma4) {
+      gemma4Label.textContent = `Gemma 4 (${data.size.toUpperCase()})`;
+      gemma4Text.textContent = data.transcript;
+      gemma4Block.style.display = "block";
+    } else {
+      if (data.ctc != null) {
+        ctcBlock.style.display = "block";
+        ctcText.textContent = data.ctc;
+      }
+      if (data.rnnt != null) {
+        rnntBlock.style.display = "block";
+        rnntText.textContent = data.rnnt;
+      }
+    }
+    resultsEl.classList.add("show");
+  } catch (err) {
+    showError(err.message || "Something went wrong.");
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove("loading");
+    submitLabel.textContent = "Transcribe";
+  }
+});
+
+document.addEventListener("click", (e) => {
+  if (!e.target.classList.contains("copy-btn")) return;
+  const target = $(e.target.dataset.target);
+  navigator.clipboard.writeText(target.textContent).then(() => {
+    const original = e.target.textContent;
+    e.target.textContent = "Copied";
+    setTimeout(() => { e.target.textContent = original; }, 1200);
+  });
+});
+
+async function checkHealth() {
+  try {
+    const res = await fetch("/health");
+    const data = await res.json();
+    if (data.model_loaded) {
+      statusDot.style.background = "var(--success)";
+      statusText.textContent = "Model ready";
+    } else {
+      statusDot.style.background = "#c9a227";
+      statusText.textContent = "Model still loading…";
+      setTimeout(checkHealth, 2000);
+    }
+  } catch {
+    statusDot.style.background = "var(--error-text)";
+    statusText.textContent = "Can't reach server";
+    setTimeout(checkHealth, 3000);
+  }
+}
+checkHealth();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+.venv/
+.hf_home/
+gguf_models/
+run/
+__pycache__/
+*.pyc
+test_audio.wav
+.DS_Store
+*.gguf
